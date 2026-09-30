@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixelator</title>
+<meta name="description" content="Turn a photo into a clean pixelated image, right in your browser.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <h1>Pixelator</h1>
+  <p class="tagline">Upload a photo, pixelate it, download it. Nothing else.</p>
+</header>
+
+<main>
+  <!-- Shown until an image is loaded -->
+  <section
+    id="drop-zone"
+    class="drop-zone"
+    role="button"
+    tabindex="0"
+    aria-label="Load an image: click to browse, drag and drop a file, or paste from clipboard"
+  >
+    <p>Drop an image here, click to browse, or paste (Ctrl/Cmd+V)</p>
+    <input type="file" id="file-input" accept="image/*" class="visually-hidden" aria-hidden="true" tabindex="-1">
+  </section>
+
+  <p id="status" class="status" role="alert" hidden></p>
+
+  <!-- Shown once an image is loaded -->
+  <section id="editor" class="editor" hidden>
+    <div class="canvas-stage">
+      <canvas id="original-canvas" class="stage-canvas" hidden></canvas>
+      <canvas id="output-canvas" class="stage-canvas"></canvas>
+    </div>
+
+    <p id="info-line" class="info-line" aria-live="polite"></p>
+
+    <div class="controls">
+      <div class="control">
+        <label for="pixel-size">
+          Pixel size: <span id="pixel-size-value">8</span>px
+        </label>
+        <input type="range" id="pixel-size" min="2" max="64" step="1" value="8">
+      </div>
+
+      <div class="control control-toggle">
+        <input type="checkbox" id="compare-toggle">
+        <label for="compare-toggle">Show original</label>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="download-btn">Download PNG</button>
+        <button type="button" id="reset-btn">Reset</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>Runs entirely in your browser. No images are uploaded anywhere.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
