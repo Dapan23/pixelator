@@ -80,14 +80,32 @@ function pixelate() {
   const gridW = Math.max(1, Math.round(width / pixelSize));
   const gridH = Math.max(1, Math.round(height / pixelSize));
 
-  // Downscale with smoothing on: each tiny pixel approximates the average
-  // color of the block it represents.
+  // Downscale to the grid size so each tiny pixel approximates the mean
+  // color of the block it represents. A single huge downscale (e.g. a
+  // 4000px photo straight to 50px) skips most source pixels and produces
+  // noisy, low-quality colors, so halve the size repeatedly instead — each
+  // halving step is a true local average, and chaining them closely
+  // approximates a full box-filter average of each block.
+  let stepCanvas = originalCanvas;
+  while (stepCanvas.width > gridW * 2 || stepCanvas.height > gridH * 2) {
+    const nextW = Math.max(gridW, Math.ceil(stepCanvas.width / 2));
+    const nextH = Math.max(gridH, Math.ceil(stepCanvas.height / 2));
+    const step = document.createElement("canvas");
+    step.width = nextW;
+    step.height = nextH;
+    const stepCtx = step.getContext("2d");
+    stepCtx.imageSmoothingEnabled = true;
+    stepCtx.imageSmoothingQuality = "high";
+    stepCtx.drawImage(stepCanvas, 0, 0, nextW, nextH);
+    stepCanvas = step;
+  }
+
   tinyCanvas.width = gridW;
   tinyCanvas.height = gridH;
   tinyCtx.imageSmoothingEnabled = true;
   tinyCtx.imageSmoothingQuality = "high";
   tinyCtx.clearRect(0, 0, gridW, gridH);
-  tinyCtx.drawImage(originalCanvas, 0, 0, gridW, gridH);
+  tinyCtx.drawImage(stepCanvas, 0, 0, gridW, gridH);
 
   // Upscale with smoothing off: blocks stay crisp (nearest-neighbor).
   outputCtx.imageSmoothingEnabled = false;

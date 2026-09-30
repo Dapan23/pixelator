@@ -125,11 +125,14 @@ main {
 }
 
 .stage-canvas {
+  /* The canvas pixel buffer already has hard block edges (drawn with
+     smoothing off); letting the browser smoothly downscale it for display
+     avoids the moire/aliasing that "image-rendering: pixelated" causes when
+     shrinking a full-resolution image to fit the screen. */
   max-width: 100%;
   height: auto;
   display: block;
   border-radius: 4px;
-  image-rendering: pixelated;
 }
 
 .info-line {
