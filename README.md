@@ -25,7 +25,6 @@ recolored or mapped to a palette unless dithering is explicitly enabled.
 - **Adjust pixel size**: drag the slider for a live preview.
 - **Dither texture**: toggle on for a retro dot-grid look, then tune
   "Number of colors" and "Dither strength". Off by default (plain pixelation).
-- **Compare with the original**: check the "Show original" toggle.
 - **Download**: click "Download PNG" to save the pixelated image.
 - **Start over**: click "Reset".
 

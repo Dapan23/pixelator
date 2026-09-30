@@ -17,12 +17,11 @@ const dropZone = document.getElementById("drop-zone");
 const fileInput = document.getElementById("file-input");
 const statusEl = document.getElementById("status");
 const editor = document.getElementById("editor");
-const originalCanvas = document.getElementById("original-canvas");
-const outputCanvas = document.getElementById("output-canvas");
+const canvasStage = document.getElementById("canvas-stage");
+const previewCanvas = document.getElementById("preview-canvas");
 const infoLine = document.getElementById("info-line");
 const pixelSizeInput = document.getElementById("pixel-size");
 const pixelSizeValue = document.getElementById("pixel-size-value");
-const compareToggle = document.getElementById("compare-toggle");
 const ditherToggle = document.getElementById("dither-toggle");
 const ditherOptions = document.getElementById("dither-options");
 const ditherColorsInput = document.getElementById("dither-colors");
@@ -32,13 +31,19 @@ const ditherStrengthValue = document.getElementById("dither-strength-value");
 const downloadBtn = document.getElementById("download-btn");
 const resetBtn = document.getElementById("reset-btn");
 
-const originalCtx = originalCanvas.getContext("2d");
-const outputCtx = outputCanvas.getContext("2d");
+const previewCtx = previewCanvas.getContext("2d");
 
-// Offscreen canvas holding the small grid of averaged block colors, drawn
-// via putImageData (an exact pixel write — never smoothed/interpolated).
-const tinyCanvas = document.createElement("canvas");
-const tinyCtx = tinyCanvas.getContext("2d");
+// Offscreen canvas (never attached to the DOM) holding the loaded photo at
+// full resolution, used only to read its raw pixels via getImageData.
+const sourceCanvas = document.createElement("canvas");
+const sourceCtx = sourceCanvas.getContext("2d");
+
+// Offscreen canvas (never attached to the DOM) holding the true
+// full-resolution pixelated result. This, not the on-screen preview, is
+// what Download PNG exports — the preview may be painted at a smaller
+// integer scale to fit the screen, but the download is always full-res.
+const fullCanvas = document.createElement("canvas");
+const fullCtx = fullCanvas.getContext("2d");
 
 let currentFileBaseName = "pixelated";
 let sourceImageData = null; // cached full-res pixel data of the loaded image
@@ -67,16 +72,14 @@ async function loadFile(file) {
   const width = Math.round(bitmap.width * scale);
   const height = Math.round(bitmap.height * scale);
 
-  originalCanvas.width = width;
-  originalCanvas.height = height;
-  originalCtx.drawImage(bitmap, 0, 0, width, height);
+  sourceCanvas.width = width;
+  sourceCanvas.height = height;
+  sourceCtx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
-  sourceImageData = originalCtx.getImageData(0, 0, width, height);
+  sourceImageData = sourceCtx.getImageData(0, 0, width, height);
 
   pixelSizeInput.value = DEFAULT_PIXEL_SIZE;
   pixelSizeValue.textContent = DEFAULT_PIXEL_SIZE;
-  compareToggle.checked = false;
-  updateCompareVisibility();
   ditherToggle.checked = false;
   updateDitherControlsEnabled();
 
@@ -87,16 +90,6 @@ async function loadFile(file) {
 }
 
 // --- Pixelation -----------------------------------------------------------
-
-// Forces nearest-neighbor scaling on a context. Resizing a canvas (setting
-// .width/.height) resets all context state, including imageSmoothingEnabled,
-// so this must be called again after every resize, right before drawing.
-function setNoSmoothing(ctx) {
-  ctx.imageSmoothingEnabled = false;
-  ctx.mozImageSmoothingEnabled = false;
-  ctx.webkitImageSmoothingEnabled = false;
-  ctx.msImageSmoothingEnabled = false;
-}
 
 // Computes the exact mean color of every block by summing raw source pixels
 // (getImageData), rather than relying on the browser's downscale filter —
@@ -167,39 +160,65 @@ function applyOrderedDither(imageData, blocksX, blocksY, numColors, strength) {
   }
 }
 
+// Paints one flat-colored rectangle per block directly onto a context —
+// no drawImage, no scaling, no smoothing flag involved at all, so there is
+// no code path left that could blend colors across a block edge.
+function paintBlocks(ctx, blockData, blocksX, blocksY, scale) {
+  const data = blockData.data;
+  for (let by = 0; by < blocksY; by++) {
+    for (let bx = 0; bx < blocksX; bx++) {
+      const i = (by * blocksX + bx) * 4;
+      ctx.fillStyle = `rgb(${data[i]}, ${data[i + 1]}, ${data[i + 2]})`;
+      ctx.fillRect(bx * scale, by * scale, scale, scale);
+    }
+  }
+}
+
+// Width available for the preview canvas inside its container, used to pick
+// an integer display scale so the browser never has to CSS-scale the
+// canvas (see the overflow:auto comment in style.css for why that matters).
+function getAvailableWidth() {
+  const style = getComputedStyle(canvasStage);
+  const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+  const width = canvasStage.clientWidth - paddingX;
+  return width > 0 ? width : 320;
+}
+
 function pixelate() {
   if (!sourceImageData) return;
 
-  const width = originalCanvas.width;
-  const height = originalCanvas.height;
+  const width = sourceCanvas.width;
+  const height = sourceCanvas.height;
   const pixelSize = Number(pixelSizeInput.value);
 
-  // Integer block grid, so the upscale below is an exact integer factor —
-  // no fractional blocks or uneven edges.
+  // Integer block grid, so every scale used below is an exact integer
+  // factor — no fractional blocks or uneven edges.
   const blocksX = Math.max(1, Math.round(width / pixelSize));
   const blocksY = Math.max(1, Math.round(height / pixelSize));
   const outputW = blocksX * pixelSize;
   const outputH = blocksY * pixelSize;
 
-  const smallImageData = computeBlockAverages(sourceImageData, width, height, blocksX, blocksY);
+  const averages = computeBlockAverages(sourceImageData, width, height, blocksX, blocksY);
 
   if (ditherToggle.checked) {
     const numColors = Number(ditherColorsInput.value);
     const strength = Number(ditherStrengthInput.value) / 100;
-    applyOrderedDither(smallImageData, blocksX, blocksY, numColors, strength);
+    applyOrderedDither(averages, blocksX, blocksY, numColors, strength);
   }
 
-  // Write the averaged colors as an exact pixel copy (no smoothing involved).
-  tinyCanvas.width = blocksX;
-  tinyCanvas.height = blocksY;
-  tinyCtx.putImageData(smallImageData, 0, 0);
+  // Full-resolution result — the single source of truth for Download PNG.
+  fullCanvas.width = outputW;
+  fullCanvas.height = outputH;
+  paintBlocks(fullCtx, averages, blocksX, blocksY, pixelSize);
 
-  // Scale up by the exact integer pixelSize factor with smoothing off, so
-  // every block stays a single flat color with hard edges.
-  outputCanvas.width = outputW;
-  outputCanvas.height = outputH;
-  setNoSmoothing(outputCtx);
-  outputCtx.drawImage(tinyCanvas, 0, 0, outputW, outputH);
+  // On-screen preview: painted at whatever integer scale fits the
+  // available width (capped at the true pixelSize, never upscaled beyond
+  // it). Its canvas pixel dimensions equal its on-screen size exactly, so
+  // no CSS scaling — and therefore no browser smoothing — ever applies.
+  const displayScale = Math.max(1, Math.min(pixelSize, Math.floor(getAvailableWidth() / blocksX)));
+  previewCanvas.width = blocksX * displayScale;
+  previewCanvas.height = blocksY * displayScale;
+  paintBlocks(previewCtx, averages, blocksX, blocksY, displayScale);
 
   infoLine.textContent = `Output: ${outputW} × ${outputH}px — Grid: ${blocksX} × ${blocksY} blocks`;
 }
@@ -213,18 +232,10 @@ function updateDitherControlsEnabled() {
   ditherOptions.classList.toggle("disabled", !enabled);
 }
 
-// --- Compare toggle ---------------------------------------------------
-
-function updateCompareVisibility() {
-  const showOriginal = compareToggle.checked;
-  originalCanvas.hidden = !showOriginal;
-  outputCanvas.hidden = showOriginal;
-}
-
 // --- Download / Reset -------------------------------------------------
 
 function downloadPng() {
-  outputCanvas.toBlob((blob) => {
+  fullCanvas.toBlob((blob) => {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -243,8 +254,8 @@ function reset() {
   fileInput.value = "";
   hideStatus();
   sourceImageData = null;
-  originalCtx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
-  outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+  previewCanvas.width = 0;
+  previewCanvas.height = 0;
   infoLine.textContent = "";
   ditherToggle.checked = false;
   ditherColorsInput.value = 8;
@@ -318,8 +329,6 @@ pixelSizeInput.addEventListener("input", () => {
   pixelate();
 });
 
-compareToggle.addEventListener("change", updateCompareVisibility);
-
 ditherToggle.addEventListener("change", () => {
   updateDitherControlsEnabled();
   pixelate();
@@ -337,3 +346,15 @@ ditherStrengthInput.addEventListener("input", () => {
 
 downloadBtn.addEventListener("click", downloadPng);
 resetBtn.addEventListener("click", reset);
+
+// Recompute the preview's display scale when the viewport changes, so it
+// keeps fitting the container at an exact integer scale.
+let resizePending = false;
+window.addEventListener("resize", () => {
+  if (!sourceImageData || resizePending) return;
+  resizePending = true;
+  requestAnimationFrame(() => {
+    resizePending = false;
+    pixelate();
+  });
+});

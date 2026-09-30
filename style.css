@@ -122,16 +122,21 @@ main {
   background: var(--surface);
   border-radius: var(--radius);
   padding: 0.5rem;
+  /* Scroll instead of shrinking: Chromium silently applies its smooth
+     minification filter when CSS shrinks a <canvas> element, even with
+     image-rendering: pixelated (that filter only reliably affects
+     magnification). app.js sizes #preview-canvas to fit this container at
+     an exact integer block scale, so under normal circumstances this never
+     needs to scroll; it's a fallback for extreme cases (e.g. a very fine
+     pixel size producing more blocks than the viewport has CSS pixels). */
+  overflow: auto;
 }
 
 .stage-canvas {
-  max-width: 100%;
-  height: auto;
   display: block;
   border-radius: 4px;
-  /* Nearest-neighbor scaling for the preview, so block edges stay hard
-     instead of being blurred by the browser's default bilinear resampling.
-     Fallbacks first, most-supported value last so it wins where available. */
+  /* Safety net for browser/OS-level page zoom (magnification), which these
+     values do reliably affect, unlike CSS minification. */
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
   image-rendering: pixelated;

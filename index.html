@@ -30,9 +30,8 @@
 
   <!-- Shown once an image is loaded -->
   <section id="editor" class="editor" hidden>
-    <div class="canvas-stage">
-      <canvas id="original-canvas" class="stage-canvas" hidden></canvas>
-      <canvas id="output-canvas" class="stage-canvas"></canvas>
+    <div class="canvas-stage" id="canvas-stage">
+      <canvas id="preview-canvas" class="stage-canvas"></canvas>
     </div>
 
     <p id="info-line" class="info-line" aria-live="polite"></p>
@@ -43,11 +42,6 @@
           Pixel size: <span id="pixel-size-value">4</span>px
         </label>
         <input type="range" id="pixel-size" min="1" max="32" step="1" value="4">
-      </div>
-
-      <div class="control control-toggle">
-        <input type="checkbox" id="compare-toggle">
-        <label for="compare-toggle">Show original</label>
       </div>
 
       <div class="control control-toggle">
