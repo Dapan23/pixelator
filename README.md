@@ -39,14 +39,6 @@ Then open `http://localhost:8000` in your browser. (Opening `index.html`
 directly via `file://` also works for most features, but a local server is
 recommended for consistent clipboard/paste behavior.)
 
-## Deploy to GitHub Pages
-
-1. Push this repository to GitHub.
-2. In the repo settings, go to **Pages**.
-3. Under **Source**, select the branch (e.g. `main`) and root folder (`/`).
-4. Save — GitHub will publish the site at
-   `https://<username>.github.io/<repo>/`.
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
