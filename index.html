@@ -40,14 +40,35 @@
     <div class="controls">
       <div class="control">
         <label for="pixel-size">
-          Pixel size: <span id="pixel-size-value">8</span>px
+          Pixel size: <span id="pixel-size-value">4</span>px
         </label>
-        <input type="range" id="pixel-size" min="2" max="64" step="1" value="8">
+        <input type="range" id="pixel-size" min="1" max="32" step="1" value="4">
       </div>
 
       <div class="control control-toggle">
         <input type="checkbox" id="compare-toggle">
         <label for="compare-toggle">Show original</label>
+      </div>
+
+      <div class="control control-toggle">
+        <input type="checkbox" id="dither-toggle">
+        <label for="dither-toggle">Dither texture</label>
+      </div>
+
+      <div class="control-group" id="dither-options">
+        <div class="control">
+          <label for="dither-colors">
+            Number of colors: <span id="dither-colors-value">8</span>
+          </label>
+          <input type="range" id="dither-colors" min="2" max="32" step="1" value="8" disabled>
+        </div>
+
+        <div class="control">
+          <label for="dither-strength">
+            Dither strength: <span id="dither-strength-value">50</span>%
+          </label>
+          <input type="range" id="dither-strength" min="0" max="100" step="1" value="50" disabled>
+        </div>
       </div>
 
       <div class="actions">

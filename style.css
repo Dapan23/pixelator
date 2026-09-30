@@ -125,14 +125,16 @@ main {
 }
 
 .stage-canvas {
-  /* The canvas pixel buffer already has hard block edges (drawn with
-     smoothing off); letting the browser smoothly downscale it for display
-     avoids the moire/aliasing that "image-rendering: pixelated" causes when
-     shrinking a full-resolution image to fit the screen. */
   max-width: 100%;
   height: auto;
   display: block;
   border-radius: 4px;
+  /* Nearest-neighbor scaling for the preview, so block edges stay hard
+     instead of being blurred by the browser's default bilinear resampling.
+     Fallbacks first, most-supported value last so it wins where available. */
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 .info-line {
@@ -185,6 +187,23 @@ main {
   height: 1.1rem;
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+.control-group {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: opacity 0.15s ease;
+}
+
+.control-group.disabled {
+  opacity: 0.45;
+}
+
+.control input:disabled {
+  cursor: not-allowed;
 }
 
 .actions {
