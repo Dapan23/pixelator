@@ -4,8 +4,6 @@ A tiny, dependency-free web app that turns a photo into a clean pixelated
 image. No color filters, no dithering, no palettes — pixelation is the only
 transformation.
 
-![Pixelator screenshot placeholder](docs/screenshot.png)
-
 ## How it works
 
 1. Load a photo (file picker, drag-and-drop, or paste).
